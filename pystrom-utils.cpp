@@ -6,6 +6,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define MYSTROM_PORT "7979"
+#define DEFAULT_BUFLEN 512
 
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
 
@@ -21,11 +22,7 @@ bool winsock_startup() {
         printf("WSAStartup failed: %d\n", iResult);
         return false;
     }
-    else 
-    {
-        printf("WSAStartup succeeded.\n");
-        return true;
-    }
+    return true;
 }
 
 bool winsock_create() {
@@ -67,7 +64,10 @@ bool winsock_create() {
         WSACleanup();
         return false;
     }
+    return true;
+}
 
+bool winsock_listen() {
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
     {
         printf("Listen failed with error: %ld\n", WSAGetLastError());
@@ -75,6 +75,60 @@ bool winsock_create() {
         WSACleanup();
         return false;
     }
+
+    SOCKET ClientSocket = INVALID_SOCKET;
+
+    printf("Listening on port %s\n", MYSTROM_PORT);
+
+    // Accept a client socket
+    ClientSocket = accept(ListenSocket, NULL, NULL);
+    if (ClientSocket == INVALID_SOCKET)
+    {
+        printf("accept failed: %d\n", WSAGetLastError());
+        closesocket(ListenSocket);
+        WSACleanup();
+        return false;
+    }
+
+    printf("devuf");
+
+    char recvbuf[DEFAULT_BUFLEN];
+    int iResult;
+    int recvbuflen = DEFAULT_BUFLEN;
+
+    // Receive until the peer shuts down the connection
+    do
+    {
+
+        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0)
+        {
+            printf("Bytes received: %d\n", iResult);
+
+            // // Echo the buffer back to the sender
+            // int iSendResult = send(ClientSocket, recvbuf, iResult, 0);
+            // if (iSendResult == SOCKET_ERROR)
+            // {
+            //     printf("send failed: %d\n", WSAGetLastError());
+            //     closesocket(ClientSocket);
+            //     WSACleanup();
+            //     return 1;
+            // }
+            // printf("Bytes sent: %d\n", iSendResult);
+        }
+        else if (iResult == 0)
+            printf("Connection closing...\n");
+        else
+        {
+            printf("recv failed: %d\n", WSAGetLastError());
+            closesocket(ClientSocket);
+            WSACleanup();
+            return false;
+        }
+ 
+    } while (iResult > 0);
+
+    printf(recvbuf);
+
     return true;
 }
-

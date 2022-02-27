@@ -5,3 +5,5 @@ public:
     std::string ip;
     std::string mac;
 };
+
+std::vector<MyStromDevice> devices;
