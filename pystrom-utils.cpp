@@ -6,6 +6,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define MYSTROM_PORT "7979"
+#define IP_ADDR "0.0.0.0"
 #define DEFAULT_BUFLEN 512
 
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
@@ -19,7 +20,7 @@ bool winsock_startup() {
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0)
     {
-        printf("WSAStartup failed: %d\n", iResult);
+        printf("[pystrom-utils] WSAStartup() failed: %d\n", iResult);
         return false;
     }
     return true;
@@ -37,10 +38,10 @@ bool winsock_create() {
     hints.ai_flags = AI_PASSIVE;
 
     // Resolve the local address and port to be used by the server
-    int iResult = getaddrinfo(NULL, MYSTROM_PORT, &hints, &result);
+    int iResult = getaddrinfo(IP_ADDR, MYSTROM_PORT, &hints, &result);
     if (iResult != 0)
     {
-        printf("getaddrinfo failed: %d\n", iResult);
+        printf("[pystrom-utils] getaddrinfo() failed: %d\n", iResult);
         WSACleanup();
         return false;
     }
@@ -49,7 +50,7 @@ bool winsock_create() {
 
     if (ListenSocket == INVALID_SOCKET)
     {
-        printf("Error at socket(): %ld\n", WSAGetLastError());
+        printf("[pystrom-utils] socket() failed: %ld\n", WSAGetLastError());
         freeaddrinfo(result);
         WSACleanup();
         return false;
@@ -58,7 +59,7 @@ bool winsock_create() {
     iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR)
     {
-        printf("bind failed with error: %d\n", WSAGetLastError());
+        printf("[pystrom-utils] bind() failed with error: %d\n", WSAGetLastError());
         freeaddrinfo(result);
         closesocket(ListenSocket);
         WSACleanup();
@@ -70,7 +71,7 @@ bool winsock_create() {
 bool winsock_listen() {
     if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
     {
-        printf("Listen failed with error: %ld\n", WSAGetLastError());
+        printf("[pystrom-utils] listen() failed: %ld\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return false;
@@ -78,19 +79,19 @@ bool winsock_listen() {
 
     SOCKET ClientSocket = INVALID_SOCKET;
 
-    printf("Listening on port %s\n", MYSTROM_PORT);
+    printf("[pystrom-utils] Listening on port %s\n", MYSTROM_PORT);
 
     // Accept a client socket
     ClientSocket = accept(ListenSocket, NULL, NULL);
     if (ClientSocket == INVALID_SOCKET)
     {
-        printf("accept failed: %d\n", WSAGetLastError());
+        printf("[pystrom-utils] accept() failed: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return false;
     }
 
-    printf("devuf");
+    printf("[pystrom-utils] Socket accepted!\n");
 
     char recvbuf[DEFAULT_BUFLEN];
     int iResult;
@@ -103,7 +104,7 @@ bool winsock_listen() {
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
         if (iResult > 0)
         {
-            printf("Bytes received: %d\n", iResult);
+            printf("[pystrom-utils] Bytes received: %d\n", iResult);
 
             // // Echo the buffer back to the sender
             // int iSendResult = send(ClientSocket, recvbuf, iResult, 0);
@@ -112,15 +113,15 @@ bool winsock_listen() {
             //     printf("send failed: %d\n", WSAGetLastError());
             //     closesocket(ClientSocket);
             //     WSACleanup();
-            //     return 1;
+            //     return false;
             // }
             // printf("Bytes sent: %d\n", iSendResult);
         }
         else if (iResult == 0)
-            printf("Connection closing...\n");
+            printf("[pystrom-utils] Connection closing...\n");
         else
         {
-            printf("recv failed: %d\n", WSAGetLastError());
+            printf("[pystrom-utils] recv() failed: %d\n", WSAGetLastError());
             closesocket(ClientSocket);
             WSACleanup();
             return false;
@@ -128,7 +129,7 @@ bool winsock_listen() {
  
     } while (iResult > 0);
 
-    printf(recvbuf);
+    printf("[pystrom-utils] Output: &d\n", recvbuf);
 
     return true;
 }
