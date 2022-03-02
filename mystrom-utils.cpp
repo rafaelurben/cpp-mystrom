@@ -5,9 +5,9 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
-#define MYSTROM_PORT "7979"
 #define IP_ADDR "0.0.0.0"
-#define BUFLEN 1024
+#define MYSTROM_PORT "7979"
+#define MYSTROM_ANNOUNCEMENT_LEN 8
 
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
 
@@ -68,10 +68,10 @@ bool socket_setup() {
 }
 
 bool socket_receive() {
-    printf("[mystrom-utils] Waiting for UDP connection on %s:%s\n", IP_ADDR, MYSTROM_PORT);
+    printf("[mystrom-utils] Waiting for UDP connection on %s:%s...\n", IP_ADDR, MYSTROM_PORT);
 
-    char RecvBuf[BUFLEN];
-    int BufLen = BUFLEN;
+    char RecvBuf[MYSTROM_ANNOUNCEMENT_LEN];
+    int BufLen = MYSTROM_ANNOUNCEMENT_LEN;
 
     sockaddr_in SenderAddr;
     int SenderAddrSize = sizeof(SenderAddr);
@@ -80,19 +80,21 @@ bool socket_receive() {
         int iResult = recvfrom(Socket, RecvBuf, BufLen, 0, (SOCKADDR *)&SenderAddr, &SenderAddrSize);
         if (iResult == SOCKET_ERROR)
         {
-            wprintf(L"recvfrom failed with error %d\n", WSAGetLastError());
+            printf("[mystrom-utils] recvfrom() failed with error %d\n", WSAGetLastError());
         }
 
-        printf("[mystrom-utils] Received from %s: ", inet_ntoa(SenderAddr.sin_addr));
+        char* device_ip = inet_ntoa(SenderAddr.sin_addr);
+        char device_mac[6] = { RecvBuf[0], RecvBuf[1], RecvBuf[2], RecvBuf[3], RecvBuf[4], RecvBuf[5] };
+        char device_type = RecvBuf[6];
+        int device_flags = RecvBuf[7];
 
-        char *cp = RecvBuf;
-        for (; *cp != '\0'; ++cp)
-        {
-            printf("%x.", *cp);
-        }
-
-        printf("\n");
+        printf("[mystrom-utils] Received from %s:\n", device_ip);
+        printf("[mystrom-utils]     MAC in hex: %02X:%02X:%02X:%02X:%02X:%02X\n", device_mac[0], device_mac[1], device_mac[2], device_mac[3], device_mac[4], device_mac[5]);
+        printf("[mystrom-utils]     MAC in dec: %u:%u:%u:%u:%u:%u\n", device_mac[0], device_mac[1], device_mac[2], device_mac[3], device_mac[4], device_mac[5]);
+        printf("[mystrom-utils]     Device type: %u - Device flags: %02X\n", device_type, device_flags);
     } while (true);
+
+    printf("[mystrom-utils] Receiving finished!\n");
 
     return true;
 }
@@ -101,5 +103,3 @@ void socket_cleanup() {
     closesocket(Socket);
     WSACleanup();
 }
-
-// Notes: example value for SocketTest: 0®¤öÌ
