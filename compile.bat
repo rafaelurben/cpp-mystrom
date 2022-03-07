@@ -1,1 +1,1 @@
-g++ mystrom.cpp -lws2_32 -o mystrom.exe
+g++ mystrom.cpp -lws2_32 -funsigned-char -o mystrom.exe
