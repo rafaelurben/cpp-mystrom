@@ -11,10 +11,30 @@
 #define MYSTROM_PORT "7979"
 #define MYSTROM_ANNOUNCEMENT_LEN 8
 
+// MyStromDevice
+
+class MyStromDevice
+{
+public:
+    char* mac[6];
+    int type;
+    int flags;
+
+    char* ip;
+};
+
+std::vector<MyStromDevice> devices;
+
 // Sockets
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
 
-SOCKET Socket;
+SOCKET ReceiveSocket;
+
+char ReceiveBuffer[MYSTROM_ANNOUNCEMENT_LEN];
+int ReceiveBufferLength = MYSTROM_ANNOUNCEMENT_LEN;
+
+sockaddr_in ReceiveSenderAddr;
+int ReceiveSenderAddrSize = sizeof(ReceiveSenderAddr);
 
 bool socket_setup()
 {
@@ -30,7 +50,7 @@ bool socket_setup()
     }
 
     // Setup socket
-    Socket = INVALID_SOCKET;
+    ReceiveSocket = INVALID_SOCKET;
 
     struct addrinfo *result = NULL, *ptr = NULL, hints;
 
@@ -49,8 +69,8 @@ bool socket_setup()
         return false;
     }
 
-    Socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (Socket == INVALID_SOCKET)
+    ReceiveSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (ReceiveSocket == INVALID_SOCKET)
     {
         printf("[mystrom-utils] socket() failed with error: %ld\n", WSAGetLastError());
         freeaddrinfo(result);
@@ -58,12 +78,12 @@ bool socket_setup()
         return false;
     }
 
-    iResult = bind(Socket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind(ReceiveSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR)
     {
         printf("[mystrom-utils] bind() failed with error: %d\n", WSAGetLastError());
         freeaddrinfo(result);
-        closesocket(Socket);
+        closesocket(ReceiveSocket);
         WSACleanup();
         return false;
     }
@@ -75,24 +95,18 @@ bool socket_receive()
 {
     printf("[mystrom-utils] Waiting for UDP connection on %s:%s...\n", IP_ADDR, MYSTROM_PORT);
 
-    char RecvBuf[MYSTROM_ANNOUNCEMENT_LEN];
-    int BufLen = MYSTROM_ANNOUNCEMENT_LEN;
-
-    sockaddr_in SenderAddr;
-    int SenderAddrSize = sizeof(SenderAddr);
-
     do
     {
-        int iResult = recvfrom(Socket, RecvBuf, BufLen, 0, (SOCKADDR *)&SenderAddr, &SenderAddrSize);
+        int iResult = recvfrom(ReceiveSocket, ReceiveBuffer, ReceiveBufferLength, 0, (SOCKADDR *)&ReceiveSenderAddr, &ReceiveSenderAddrSize);
         if (iResult == SOCKET_ERROR)
         {
             printf("[mystrom-utils] recvfrom() failed with error %d\n", WSAGetLastError());
         }
 
-        char *device_ip = inet_ntoa(SenderAddr.sin_addr);
-        char device_mac[6] = {RecvBuf[0], RecvBuf[1], RecvBuf[2], RecvBuf[3], RecvBuf[4], RecvBuf[5]};
-        char device_type = RecvBuf[6];
-        int device_flags = RecvBuf[7];
+        char *device_ip = inet_ntoa(ReceiveSenderAddr.sin_addr);
+        char device_mac[6] = {ReceiveBuffer[0], ReceiveBuffer[1], ReceiveBuffer[2], ReceiveBuffer[3], ReceiveBuffer[4], ReceiveBuffer[5]};
+        char device_type = ReceiveBuffer[6];
+        int device_flags = ReceiveBuffer[7];
 
         printf("[mystrom-utils] Received from %s:\n", device_ip);
         printf("[mystrom-utils]     MAC in hex: %02X:%02X:%02X:%02X:%02X:%02X\n", device_mac[0], device_mac[1], device_mac[2], device_mac[3], device_mac[4], device_mac[5]);
@@ -107,21 +121,11 @@ bool socket_receive()
 
 void socket_cleanup()
 {
-    closesocket(Socket);
+    closesocket(ReceiveSocket);
     WSACleanup();
 }
 
-// MyStromDevice
-
-class MyStromDevice
-{
-public:
-    int devicetype;
-    std::string ip;
-    std::string mac;
-};
-
-std::vector<MyStromDevice> devices;
+// Detect
 
 void detect_devices() {
     devices.clear();
