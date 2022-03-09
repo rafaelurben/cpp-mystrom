@@ -16,17 +16,24 @@
 class MyStromDevice
 {
 public:
-    char* mac[6];
+    char* ip;
+    char mac[6];
     int type;
     int flags;
 
-    char* ip;
+    void print() {
+        printf("[MyStromDevice] IP: %s:\n", ip);
+        printf("                MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        printf("                Device type: %u - Device flags: %02X\n", type, flags);
+    }
 };
 
 std::vector<MyStromDevice> devices;
 
 // Sockets
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
+
+int iResult;
 
 SOCKET ReceiveSocket;
 
@@ -39,13 +46,12 @@ int ReceiveSenderAddrSize = sizeof(ReceiveSenderAddr);
 bool socket_setup()
 {
     WSADATA wsaData;
-    int iResult;
 
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0)
     {
-        printf("[mystrom-utils] WSAStartup() failed: %d\n", iResult);
+        printf("[MyStromDiscovery] WSAStartup() failed: %d\n", iResult);
         return false;
     }
 
@@ -64,7 +70,7 @@ bool socket_setup()
     iResult = getaddrinfo(IP_ADDR, MYSTROM_PORT, &hints, &result);
     if (iResult != 0)
     {
-        printf("[mystrom-utils] getaddrinfo() failed: %d\n", iResult);
+        printf("[MyStromDiscovery] getaddrinfo() failed: %d\n", iResult);
         WSACleanup();
         return false;
     }
@@ -72,7 +78,7 @@ bool socket_setup()
     ReceiveSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (ReceiveSocket == INVALID_SOCKET)
     {
-        printf("[mystrom-utils] socket() failed with error: %ld\n", WSAGetLastError());
+        printf("[MyStromDiscovery] socket() failed with error: %ld\n", WSAGetLastError());
         freeaddrinfo(result);
         WSACleanup();
         return false;
@@ -81,7 +87,7 @@ bool socket_setup()
     iResult = bind(ReceiveSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR)
     {
-        printf("[mystrom-utils] bind() failed with error: %d\n", WSAGetLastError());
+        printf("[MyStromDiscovery] bind() failed with error: %d\n", WSAGetLastError());
         freeaddrinfo(result);
         closesocket(ReceiveSocket);
         WSACleanup();
@@ -93,28 +99,30 @@ bool socket_setup()
 
 bool socket_receive()
 {
-    printf("[mystrom-utils] Waiting for UDP connection on %s:%s...\n", IP_ADDR, MYSTROM_PORT);
+    printf("[MyStromDiscovery] Waiting for UDP connection on %s:%s...\n", IP_ADDR, MYSTROM_PORT);
 
     do
     {
-        int iResult = recvfrom(ReceiveSocket, ReceiveBuffer, ReceiveBufferLength, 0, (SOCKADDR *)&ReceiveSenderAddr, &ReceiveSenderAddrSize);
+        iResult = recvfrom(ReceiveSocket, ReceiveBuffer, ReceiveBufferLength, 0, (SOCKADDR *)&ReceiveSenderAddr, &ReceiveSenderAddrSize);
         if (iResult == SOCKET_ERROR)
         {
-            printf("[mystrom-utils] recvfrom() failed with error %d\n", WSAGetLastError());
+            printf("[MyStromDiscovery] recvfrom() failed with error %d\n", WSAGetLastError());
         }
 
-        char *device_ip = inet_ntoa(ReceiveSenderAddr.sin_addr);
-        char device_mac[6] = {ReceiveBuffer[0], ReceiveBuffer[1], ReceiveBuffer[2], ReceiveBuffer[3], ReceiveBuffer[4], ReceiveBuffer[5]};
-        char device_type = ReceiveBuffer[6];
-        int device_flags = ReceiveBuffer[7];
+        MyStromDevice device;
 
-        printf("[mystrom-utils] Received from %s:\n", device_ip);
-        printf("[mystrom-utils]     MAC in hex: %02X:%02X:%02X:%02X:%02X:%02X\n", device_mac[0], device_mac[1], device_mac[2], device_mac[3], device_mac[4], device_mac[5]);
-        printf("[mystrom-utils]     MAC in dec: %u:%u:%u:%u:%u:%u\n", device_mac[0], device_mac[1], device_mac[2], device_mac[3], device_mac[4], device_mac[5]);
-        printf("[mystrom-utils]     Device type: %u - Device flags: %02X\n", device_type, device_flags);
+        device.ip = inet_ntoa(ReceiveSenderAddr.sin_addr);
+        for (int i = 0; i < 6; i++)
+        {
+            device.mac[i] = ReceiveBuffer[i];
+        }
+        device.type = ReceiveBuffer[6];
+        device.flags = ReceiveBuffer[7];
+
+        device.print();
     } while (true);
 
-    printf("[mystrom-utils] Receiving finished!\n");
+    printf("[MyStromDiscovery] Receiving finished!\n");
 
     return true;
 }
@@ -129,7 +137,7 @@ void socket_cleanup()
 
 void detect_devices() {
     devices.clear();
-    printf("[mystrom] Checking for MyStrom devices...\n");
+    printf("[MyStromDiscovery] Checking for MyStrom devices...\n");
 
     socket_receive();
 }
