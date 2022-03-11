@@ -26,9 +26,27 @@ public:
         printf("                MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         printf("                Device type: %u - Device flags: %02X\n", type, flags);
     }
+
+    void addToDeviceList();
 };
 
 std::vector<MyStromDevice> devices;
+
+void MyStromDevice::addToDeviceList()
+{
+    printf("[MyStromDevice] Adding to devices list... ");
+    for (int i = 0; i < devices.size(); i++)
+    {
+        MyStromDevice other = devices[i];
+        if (strcmp(other.mac, mac) == 0)
+        {
+            printf("Already in list.\n");
+            return;
+        }
+    }
+    devices.push_back(*this);
+    printf("Added.\n");
+}
 
 // Sockets
 // https://docs.microsoft.com/en-us/windows/win32/winsock/getting-started-with-winsock
@@ -106,7 +124,12 @@ bool socket_receive()
         iResult = recvfrom(ReceiveSocket, ReceiveBuffer, ReceiveBufferLength, 0, (SOCKADDR *)&ReceiveSenderAddr, &ReceiveSenderAddrSize);
         if (iResult == SOCKET_ERROR)
         {
-            printf("[MyStromDiscovery] recvfrom() failed with error %d\n", WSAGetLastError());
+            int lasterror = WSAGetLastError();
+            if (lasterror == 10040) {
+                printf("[MyStromDiscovery] Received too many bytes... Ignoring...\n");
+            } else {
+                printf("[MyStromDiscovery] recvfrom() failed with error %d\n", lasterror);
+            }
         }
 
         MyStromDevice device;
@@ -120,6 +143,7 @@ bool socket_receive()
         device.flags = ReceiveBuffer[7];
 
         device.print();
+        device.addToDeviceList();
     } while (true);
 
     printf("[MyStromDiscovery] Receiving finished!\n");
