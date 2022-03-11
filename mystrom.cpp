@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <thread>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
@@ -144,7 +145,7 @@ bool socket_receive()
 
         device.print();
         device.addToDeviceList();
-    } while (true);
+    } while (true); // TODO: Add end condition
 
     printf("[MyStromDiscovery] Receiving finished!\n");
 
@@ -157,21 +158,40 @@ void socket_cleanup()
     WSACleanup();
 }
 
-// Detect
+// Interface
 
-void detect_devices() {
-    devices.clear();
+void myStromInterface()
+{
+    printf("[MyStromInterface] Started!\n");
+    while (true)
+    {
+        std::cout << devices[0].ip;
+    }
+}
+
+// Discovery
+
+void myStromDiscovery() {
+    printf("[MyStromDiscovery] Setting up sockets...\n");
+    socket_setup();
+
     printf("[MyStromDiscovery] Checking for MyStrom devices...\n");
-
     socket_receive();
+
+    printf("[MyStromDiscovery] Running socket cleanup...\n");
+    socket_cleanup();
+
+    printf("[MyStromDiscovery] Process finished.\n");
 }
 
 // Main
 
 int main() {
-    socket_setup();
+    myStromDiscovery();
 
-    detect_devices();
-
-    socket_cleanup();
+    // std::thread discoverythread(myStromDiscovery);
+    // std::thread interfacethread(myStromInterface);
+    
+    // interfacethread.join();
+    // discoverythread.join(); 
 }

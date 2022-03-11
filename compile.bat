@@ -1,1 +1,1 @@
-g++ mystrom.cpp -lws2_32 -funsigned-char -o mystrom.exe
+g++ mystrom.cpp -lws2_32 -funsigned-char -std=c++11 -pthread -o mystrom.exe
